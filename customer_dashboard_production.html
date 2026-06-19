@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GXO SQL Server Monitoring Dashboard - Production</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2d1b69 0%, #1a0f3d 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 300;
+        }
+
+        .gxo-brand {
+            color: #FF0000 !important;
+            font-weight: 700;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .refresh-btn {
+            background: #4caf50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .last-updated {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .filters-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .filter-select option {
+            background: #1a0f3d;
+            color: white;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-subtitle {
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        .status-online {
+            color: #4caf50;
+        }
+
+        .status-offline {
+            color: #f44336;
+        }
+
+        .details-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #64b5f6;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .detail-box {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-bottom: 8px;
+        }
+
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .database-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .database-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 15px 20px;
+        }
+
+        .database-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .database-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-badge-online {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-badge-offline {
+            background: #f44336;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #ff5252;
+        }
+
+        .no-data-message {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.7;
+            font-size: 1.1rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1><span class="gxo-brand">GXO</span> SQL Server Monitoring Dashboard</h1>
+                <div style="font-size: 0.9rem; opacity: 0.8; margin-top: 5px;">Production Environment</div>
+            </div>
+            <div class="header-controls">
+                <div class="last-updated">Last updated: <span id="lastUpdated">--:--:--</span></div>
+                <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <div class="filter-card">
+                <label class="filter-label" for="customerSelect">Select Customer</label>
+                <select id="customerSelect" class="filter-select" onchange="onCustomerChange()">
+                    <option value="">-- Select Customer --</option>
+                </select>
+            </div>
+            <div class="filter-card">
+                <label class="filter-label" for="serverSelect">Select Server</label>
+                <select id="serverSelect" class="filter-select" onchange="onServerChange()">
+                    <option value="">-- Select Server --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Server Status</div>
+                    <div class="metric-icon">🖥️</div>
+                </div>
+                <div class="metric-value" id="serverStatus">--</div>
+                <div class="metric-subtitle" id="serverSubtitle">Select a server</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Total Databases</div>
+                    <div class="metric-icon">🗄️</div>
+                </div>
+                <div class="metric-value" id="totalDatabases">0</div>
+                <div class="metric-subtitle" id="databaseSubtitle">0 online</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">CPU Usage</div>
+                    <div class="metric-icon">⚡</div>
+                </div>
+                <div class="metric-value" id="cpuUsage">0%</div>
+                <div class="metric-subtitle">Current usage</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Memory Usage</div>
+                    <div class="metric-icon">💾</div>
+                </div>
+                <div class="metric-value" id="memoryUsage">0%</div>
+                <div class="metric-subtitle">Current usage</div>
+            </div>
+        </div>
+
+        <!-- Server Details -->
+        <div class="details-section" id="serverDetails" style="display: none;">
+            <div class="section-title">📊 Server Details</div>
+            <div class="details-grid">
+                <div class="detail-box">
+                    <div class="detail-label">Server Name</div>
+                    <div class="detail-value" id="detailServerName">--</div>
+                </div>
+                <div class="detail-box">
+                    <div class="detail-label">Customer</div>
+                    <div class="detail-value" id="detailCustomerName">--</div>
+                </div>
+                <div class="detail-box">
+                    <div class="detail-label">Response Time</div>
+                    <div class="detail-value" id="detailResponseTime">-- ms</div>
+                </div>
+                <div class="detail-box">
+                    <div class="detail-label">Active Connections</div>
+                    <div class="detail-value" id="detailConnections">0</div>
+                </div>
+                <div class="detail-box">
+                    <div class="detail-label">Blocked Sessions</div>
+                    <div class="detail-value" id="detailBlockedSessions">0</div>
+                </div>
+                <div class="detail-box">
+                    <div class="detail-label">SQL Version</div>
+                    <div class="detail-value" id="detailVersion">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database List -->
+        <div class="details-section" id="databaseSection" style="display: none;">
+            <div class="section-title">🗄️ Databases</div>
+            <div class="database-list" id="databaseList">
+                <div class="no-data-message">Select a server to view databases</div>
+            </div>
+        </div>
+
+        <!-- Loading/Error Messages -->
+        <div id="loadingMessage" class="loading" style="display: none;">Loading data...</div>
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:7070/api/monitoring';
+        let customers = [];
+        let selectedCustomer = null;
+        let selectedServer = null;
+        let refreshInterval = null;
+
+        // Initialize dashboard
+        async function init() {
+            await loadCustomers();
+            updateLastUpdated();
+        }
+
+        // Load customers
+        async function loadCustomers() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/customers?limit=0`);
+                const data = await response.json();
+                customers = data.customers || [];
+                
+                const customerSelect = document.getElementById('customerSelect');
+                customerSelect.innerHTML = '<option value="">-- Select Customer --</option>';
+                
+                customers.forEach(customer => {
+                    const option = document.createElement('option');
+                    option.value = customer.customer_id;
+                    option.textContent = `${customer.customer_name} (${customer.server_count} servers)`;
+                    customerSelect.appendChild(option);
+                });
+            } catch (error) {
+                showError('Failed to load customers: ' + error.message);
+            }
+        }
+
+        // Customer selection changed
+        async function onCustomerChange() {
+            const customerSelect = document.getElementById('customerSelect');
+            const customerId = customerSelect.value;
+            
+            // Reset server selection
+            const serverSelect = document.getElementById('serverSelect');
+            serverSelect.innerHTML = '<option value="">-- Select Server --</option>';
+            selectedServer = null;
+            
+            // Hide details
+            document.getElementById('serverDetails').style.display = 'none';
+            document.getElementById('databaseSection').style.display = 'none';
+            resetMetrics();
+            
+            if (!customerId) {
+                selectedCustomer = null;
+                return;
+            }
+            
+            // Find selected customer
+            selectedCustomer = customers.find(c => c.customer_id == customerId);
+            
+            if (selectedCustomer && selectedCustomer.servers) {
+                // Populate server dropdown
+                selectedCustomer.servers.forEach(server => {
+                    const option = document.createElement('option');
+                    option.value = server.server_instance;
+                    option.textContent = server.server_instance;
+                    serverSelect.appendChild(option);
+                });
+            }
+            
+            document.getElementById('detailCustomerName').textContent = 
+                selectedCustomer ? selectedCustomer.customer_name : '--';
+        }
+
+        // Server selection changed
+        async function onServerChange() {
+            const serverSelect = document.getElementById('serverSelect');
+            const serverInstance = serverSelect.value;
+            
+            if (!serverInstance) {
+                selectedServer = null;
+                document.getElementById('serverDetails').style.display = 'none';
+                document.getElementById('databaseSection').style.display = 'none';
+                resetMetrics();
+                return;
+            }
+            
+            selectedServer = serverInstance;
+            await loadServerDetails(serverInstance);
+        }
+
+        // Load server details
+        async function loadServerDetails(serverName) {
+            try {
+                showLoading(true);
+                
+                const response = await fetch(`${API_BASE_URL}/server-details?server=${encodeURIComponent(serverName)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Update metrics
+                updateMetrics(data);
+                
+                // Update server details
+                updateServerDetails(data);
+                
+                // Update database list
+                updateDatabaseList(data.databases || []);
+                
+                // Show sections
+                document.getElementById('serverDetails').style.display = 'block';
+                document.getElementById('databaseSection').style.display = 'block';
+                
+                showLoading(false);
+                updateLastUpdated();
+                
+            } catch (error) {
+                showLoading(false);
+                showError('Failed to load server details: ' + error.message);
+            }
+        }
+
+        // Update metrics
+        function updateMetrics(data) {
+            const serverStatus = data.server_status;
+            const dbSummary = data.database_summary;
+            
+            // Server status
+            const isOnline = serverStatus.is_available;
+            document.getElementById('serverStatus').textContent = isOnline ? 'Online' : 'Offline';
+            document.getElementById('serverStatus').className = 'metric-value ' + (isOnline ? 'status-online' : 'status-offline');
+            document.getElementById('serverSubtitle').textContent = `Response: ${Math.round(serverStatus.response_time_ms)}ms`;
+            
+            // Databases
+            document.getElementById('totalDatabases').textContent = dbSummary.total_databases;
+            document.getElementById('databaseSubtitle').textContent = 
+                `${dbSummary.online_databases} online, ${dbSummary.offline_databases} offline`;
+            
+            // CPU & Memory
+            document.getElementById('cpuUsage').textContent = serverStatus.cpu_usage_percent.toFixed(1) + '%';
+            document.getElementById('memoryUsage').textContent = serverStatus.memory_usage_percent.toFixed(1) + '%';
+        }
+
+        // Update server details
+        function updateServerDetails(data) {
+            const serverStatus = data.server_status;
+            
+            document.getElementById('detailServerName').textContent = data.server_name;
+            document.getElementById('detailResponseTime').textContent = Math.round(serverStatus.response_time_ms) + ' ms';
+            document.getElementById('detailConnections').textContent = serverStatus.active_connections;
+            document.getElementById('detailBlockedSessions').textContent = serverStatus.blocked_sessions;
+            document.getElementById('detailVersion').textContent = serverStatus.version;
+        }
+
+        // Update database list
+        function updateDatabaseList(databases) {
+            const databaseList = document.getElementById('databaseList');
+            
+            if (!databases || databases.length === 0) {
+                databaseList.innerHTML = '<div class="no-data-message">No databases found</div>';
+                return;
+            }
+            
+            databaseList.innerHTML = databases.map(db => `
+                <div class="database-item">
+                    <div>
+                        <div class="database-name">${db.DatabaseName || 'Unknown'}</div>
+                        <div class="detail-label">Size: ${(db.SizeMB || 0).toFixed(2)} MB | Recovery: ${db.RecoveryModel || 'Unknown'}</div>
+                    </div>
+                    <div class="database-status ${db.State === 'ONLINE' ? 'status-badge-online' : 'status-badge-offline'}">
+                        ${db.State || 'UNKNOWN'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Reset metrics
+        function resetMetrics() {
+            document.getElementById('serverStatus').textContent = '--';
+            document.getElementById('serverStatus').className = 'metric-value';
+            document.getElementById('serverSubtitle').textContent = 'Select a server';
+            document.getElementById('totalDatabases').textContent = '0';
+            document.getElementById('databaseSubtitle').textContent = '0 online';
+            document.getElementById('cpuUsage').textContent = '0%';
+            document.getElementById('memoryUsage').textContent = '0%';
+            
+            document.getElementById('detailServerName').textContent = '--';
+            document.getElementById('detailResponseTime').textContent = '-- ms';
+            document.getElementById('detailConnections').textContent = '0';
+            document.getElementById('detailBlockedSessions').textContent = '0';
+            document.getElementById('detailVersion').textContent = '--';
+        }
+
+        // Refresh data
+        async function refreshData() {
+            if (selectedServer) {
+                await loadServerDetails(selectedServer);
+            }
+        }
+
+        // Show loading
+        function showLoading(show) {
+            document.getElementById('loadingMessage').style.display = show ? 'block' : 'none';
+        }
+
+        // Show error
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update last updated time
+        function updateLastUpdated() {
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

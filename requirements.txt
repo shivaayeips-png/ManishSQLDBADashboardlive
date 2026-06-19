@@ -1,0 +1,33 @@
+# SQL Server Monitoring Dashboard - Python Requirements
+
+# Database connectivity
+pyodbc>=4.0.39
+
+# Web framework
+Flask>=2.3.0
+Flask-CORS>=4.0.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Scheduling
+schedule>=1.2.0
+APScheduler>=3.10.0
+
+# Logging and monitoring
+python-dateutil>=2.8.2
+
+# Email alerts
+secure-smtplib>=0.1.1
+
+# Configuration
+python-dotenv>=1.0.0
+
+# Data visualization (optional)
+matplotlib>=3.7.0
+plotly>=5.14.0
+
+# Testing
+pytest>=7.3.0
+pytest-cov>=4.1.0

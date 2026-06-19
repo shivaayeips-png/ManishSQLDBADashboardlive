@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>GXO SQL Server Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2d1b69 0%, #1a0f3d 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 12px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 300;
+            background: linear-gradient(45deg, #64b5f6, #42a5f5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .last-updated {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .refresh-btn, .auto-refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover, .auto-refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .auto-refresh-btn.active {
+            background: #4caf50;
+            border-color: #4caf50;
+        }
+
+        .filters-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .filter-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.75rem;
+            opacity: 0.85;
+            margin-bottom: 6px;
+        }
+
+        .filter-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .filter-select option {
+            color: black;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-card.server-health {
+            background: linear-gradient(135deg, rgba(16, 78, 71, 0.8) 0%, rgba(13, 62, 56, 0.9) 100%);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .metric-card.databases {
+            background: linear-gradient(135deg, rgba(25, 55, 109, 0.8) 0%, rgba(20, 44, 87, 0.9) 100%);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+
+        .metric-card.cpu-usage {
+            background: linear-gradient(135deg, rgba(98, 35, 56, 0.8) 0%, rgba(78, 28, 45, 0.9) 100%);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .metric-card.connections {
+            background: linear-gradient(135deg, rgba(74, 35, 98, 0.8) 0%, rgba(59, 28, 78, 0.9) 100%);
+            border: 1px solid rgba(156, 39, 176, 0.3);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .metric-title {
+            font-size: 0.75rem;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .metric-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 300;
+            margin-bottom: 3px;
+        }
+
+        .metric-subtitle {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4caf50;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .nav-tab {
+            padding: 8px 18px;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            opacity: 0.7;
+        }
+
+        .nav-tab.active {
+            background: rgba(255, 255, 255, 0.2);
+            opacity: 1;
+        }
+
+        .nav-tab:hover {
+            opacity: 1;
+        }
+
+        .content-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .availability-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .availability-display {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .availability-percentage {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 6px;
+        }
+
+        .availability-subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .circular-progress {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 5px;
+            position: relative;
+        }
+
+        .circular-progress svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .circular-progress .bg-circle {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.2);
+            stroke-width: 8;
+        }
+
+        .circular-progress .progress-circle {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.5s ease;
+        }
+
+        .server-progress .progress-circle {
+            stroke: #4caf50;
+        }
+
+        .database-progress .progress-circle {
+            stroke: #2196f3;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .details-panel {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: rgba(33, 150, 243, 0.14);
+            border: 1px solid rgba(33, 150, 243, 0.35);
+        }
+
+        .details-button {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            text-align: left;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+        }
+
+        .details-button:hover {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .detail-box {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #90caf9;
+            word-break: break-word;
+        }
+
+        .status-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: 300;
+            margin-bottom: 2px;
+        }
+
+        .status-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .status-item.online .status-value {
+            color: #4caf50;
+        }
+
+        .status-item.offline .status-value {
+            color: #f44336;
+        }
+
+        .status-item.info .status-value {
+            color: #2196f3;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .list-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 36px;
+        }
+
+        .list-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 28px;
+        }
+
+        .status-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 18px;
+            padding: 26px 24px;
+        }
+
+        .database-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .database-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 18px;
+            padding: 22px 20px;
+        }
+
+        .database-item-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .database-badge {
+            background: #2f80ed;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            min-width: 86px;
+            text-align: center;
+        }
+
+        .database-item-right {
+            text-align: right;
+        }
+
+        .status-card-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .status-icon-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 3px solid #00e676;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00e676;
+            font-size: 0.9rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .status-main-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .status-main-subtitle {
+            font-size: 0.95rem;
+            opacity: 0.7;
+        }
+
+        .status-card-right {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(70px, auto));
+            gap: 28px;
+            align-items: center;
+            text-align: center;
+        }
+
+        .status-metric-value {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .status-metric-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.7;
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .content-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+
+        /* Blocking Queries Section */
+        .blocking-queries-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 15px;
+        }
+
+        .blocking-queries-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .blocking-queries-title {
+            font-size: 1rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .query-count-badge {
+            background: #ff5722;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .query-count-badge.zero {
+            background: #4caf50;
+        }
+
+        .queries-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .query-item {
+            background: rgba(255, 255, 255, 0.08);
+            border-left: 4px solid #ff5722;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .query-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .query-item.long-running {
+            border-left-color: #ff9800;
+        }
+
+        .query-item.head-blocker {
+            border-left-color: #f44336;
+        }
+
+        .query-item.blocked {
+            border-left-color: #ffc107;
+        }
+
+        .query-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .query-session-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .query-type-badge {
+            background: rgba(255, 87, 34, 0.3);
+            color: #ff5722;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .query-type-badge.long-running {
+            background: rgba(255, 152, 0, 0.3);
+            color: #ff9800;
+        }
+
+        .query-type-badge.head-blocker {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
+        .query-type-badge.blocked {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
+        .query-duration {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ff5722;
+        }
+
+        .query-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 6px;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .query-detail-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .query-text {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            max-height: 60px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .no-queries-message {
+            text-align: center;
+            padding: 20px;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <div>
+                <h1><span style="color: #FF0000 !important; font-weight: 700; -webkit-text-fill-color: #FF0000 !important;">GXO</span> SQL Server Monitoring Dashboard</h1>
+                <div class="header-subtitle">Real-time monitoring of server and database availability</div>
+            </div>
+            <div class="header-controls">
+                <div class="last-updated">Last updated: <span id="lastUpdated">--:--:-- --</span></div>
+                <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                <button class="auto-refresh-btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">⚡ Auto-refresh ON</button>
+            </div>
+        </div>
+
+        <div class="filters-panel">
+            <div class="filter-card">
+                <label class="filter-label" for="customerSelect">Select Client Name</label>
+                <select id="customerSelect" class="filter-select" onchange="onCustomerChange()">
+                    <option value="">Select client</option>
+                </select>
+            </div>
+            <div class="filter-card">
+                <label class="filter-label" for="serverSelect">Select Server Name</label>
+                <select id="serverSelect" class="filter-select" onchange="onServerChange()">
+                    <option value="">Select server</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card server-health">
+                <div class="metric-header">
+                    <div class="metric-title">Server Health</div>
+                    <div class="metric-icon">🖥️</div>
+                </div>
+                <div class="metric-value" id="serverHealthPercent">100%</div>
+                <div class="metric-subtitle" id="serverHealthSubtitle">1 of 1 servers online</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="serverHealthProgress" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <div class="metric-card databases">
+                <div class="metric-header">
+                    <div class="metric-title">Databases</div>
+                    <div class="metric-icon">🗄️</div>
+                </div>
+                <div class="metric-value" id="databaseCount">7</div>
+                <div class="metric-subtitle" id="databaseSubtitle">7 total databases</div>
+            </div>
+
+            <div class="metric-card cpu-usage">
+                <div class="metric-header">
+                    <div class="metric-title">Avg CPU Usage</div>
+                    <div class="metric-icon">⚡</div>
+                </div>
+                <div class="metric-value" id="cpuUsage">35.0%</div>
+                <div class="metric-subtitle">Across all servers</div>
+            </div>
+
+            <div class="metric-card connections">
+                <div class="metric-header">
+                    <div class="metric-title">Active Connections</div>
+                    <div class="metric-icon">👥</div>
+                </div>
+                <div class="metric-value" id="activeConnections">7</div>
+                <div class="metric-subtitle" id="connectionsSubtitle">0 blocked sessions</div>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('overview')">Overview</button>
+            <button class="nav-tab" onclick="showTab('servers')">Servers</button>
+            <button class="nav-tab" onclick="showTab('databases')">Databases</button>
+            <button class="nav-tab" onclick="showTab('alerts')">Alerts</button>
+        </div>
+
+        <div id="overviewTab" class="tab-content active">
+            <div class="content-section">
+                <div class="availability-section server-progress">
+                    <div class="section-title">
+                        🖥️ <span style="color: #FF0000; font-weight: 700;">GXO</span> Server Availability %
+                    </div>
+                    <div class="availability-display">
+                        <div class="availability-percentage" id="serverAvailabilityPercent">100%</div>
+                        <div class="availability-subtitle" id="serverAvailabilitySubtitle">1 of 1 servers online</div>
+                        <div class="circular-progress">
+                            <svg viewBox="0 0 140 140">
+                                <circle class="bg-circle" cx="70" cy="70" r="52"></circle>
+                                <circle class="progress-circle" cx="70" cy="70" r="52"
+                                        stroke-dasharray="326.73" stroke-dashoffset="0" id="serverProgressCircle"></circle>
+                            </svg>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; font-weight: 300;">
+                                <div id="serverProgressText">100%</div>
+                                <div style="font-size: 0.9rem; opacity: 0.8;">Available</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-grid">
+                        <div class="status-item online">
+                            <div class="status-value" id="onlineServers">1</div>
+                            <div class="status-label">Online</div>
+                        </div>
+                        <div class="status-item offline">
+                            <div class="status-value" id="offlineServers">0</div>
+                            <div class="status-label">Offline</div>
+                        </div>
+                        <div class="status-item info">
+                            <div class="status-value" id="avgResponseTime">539ms</div>
+                            <div class="status-label">Avg Response</div>
+                        </div>
+                    </div>
+                    <div class="details-panel">
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; color: #64b5f6;">
+                            📊 Selected Server Details
+                        </div>
+                        <div class="details-grid">
+                            <div class="detail-box">
+                                <div class="detail-label">Server Instance</div>
+                                <div class="detail-value" id="selectedServerName">Not selected</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Client Name</div>
+                                <div class="detail-value" id="selectedClientName">Not selected</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Database Count</div>
+                                <div class="detail-value" id="selectedDatabaseCount">0</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Online Status</div>
+                                <div class="detail-value" id="selectedOnlineStatus">Unknown</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Running State</div>
+                                <div class="detail-value" id="selectedRunningState">Unknown</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Response Time</div>
+                                <div class="detail-value" id="selectedResponseTime">0 ms</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px; padding: 12px; background: rgba(100, 181, 246, 0.1); border-radius: 8px; border: 1px solid rgba(100, 181, 246, 0.3);">
+                            <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #64b5f6;">
+                                🗄️ Database Names on This Server:
+                            </div>
+                            <div id="selectedDatabaseNames" style="font-size: 0.85rem; line-height: 1.6; opacity: 0.9;">
+                                Select a server to view database names
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="availability-section database-progress">
+                    <div class="section-title">
+                        🗄️ <span style="color: #FF0000; font-weight: 700;">GXO</span> Database Availability %
+                    </div>
+                    <div class="availability-display">
+                        <div class="availability-percentage" id="databaseAvailabilityPercent">100%</div>
+                        <div class="availability-subtitle" id="databaseAvailabilitySubtitle">7 of 7 databases online</div>
+                        <div class="circular-progress">
+                            <svg viewBox="0 0 140 140">
+                                <circle class="bg-circle" cx="70" cy="70" r="52"></circle>
+                                <circle class="progress-circle" cx="70" cy="70" r="52"
+                                        stroke-dasharray="326.73" stroke-dashoffset="0" id="databaseProgressCircle"></circle>
+                            </svg>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; font-weight: 300;">
+                                <div id="databaseProgressText">100%</div>
+                                <div style="font-size: 0.9rem; opacity: 0.8;">Available</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-grid">
+                        <div class="status-item online">
+                            <div class="status-value" id="onlineDatabases">7</div>
+                            <div class="status-label">Online</div>
+                        </div>
+                        <div class="status-item offline">
+
+        <!-- Blocking and Long-Running Queries Section -->
+        <div class="blocking-queries-section" id="blockingQueriesSection" style="display: none;">
+            <div class="blocking-queries-header">
+                <div class="blocking-queries-title">
+                    ⚠️ <span style="color: #FF0000; font-weight: 700;">GXO</span> Blocking & Long-Running Queries
+                    <span class="query-count-badge zero" id="queryCountBadge">0</span>
+                </div>
+                <div style="font-size: 0.75rem; opacity: 0.7;">
+                    Threshold: >30 seconds
+                </div>
+            </div>
+            <div class="queries-container" id="queriesContainer">
+                <div class="no-queries-message">
+                    ✓ No blocking or long-running queries detected
+                </div>
+            </div>
+        </div>
+                            <div class="status-value" id="offlineDatabases">0</div>
+                            <div class="status-label">Offline</div>
+                        </div>
+                        <div class="status-item info">
+                            <div class="status-value" id="totalSizeMB">418</div>
+                            <div class="status-label">Total MB</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="serversTab" class="tab-content">
+            <div class="list-panel">
+                <div class="list-title">Server Status</div>
+                <div class="status-card">
+                    <div class="status-card-left">
+                        <div class="status-icon-circle">✓</div>
+                        <div>
+                            <div class="status-main-name" id="serverTabName">00670T\MANISHPREET</div>
+                            <div class="status-main-subtitle" id="serverTabResponse">Response: 0ms</div>
+                        </div>
+                    </div>
+                    <div class="status-card-right">
+                        <div>
+                            <div class="status-metric-value" id="serverTabCpu">0.0%</div>
+                            <div class="status-metric-label">CPU</div>
+                        </div>
+                        <div>
+                            <div class="status-metric-value" id="serverTabMemory">0.0%</div>
+                            <div class="status-metric-label">Memory</div>
+                        </div>
+                        <div>
+                            <div class="status-metric-value" id="serverTabConnections">0</div>
+                            <div class="status-metric-label">Connections</div>
+                        </div>
+                        <div>
+                            <div class="status-metric-value" id="serverTabDatabases">0</div>
+                            <div class="status-metric-label">Databases</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="databasesTab" class="tab-content">
+            <div class="list-panel">
+                <div class="list-title">Database Status</div>
+                <div id="databaseList" class="database-list">
+                    <div class="database-item">
+                        <div class="database-item-left">
+                            <div class="status-icon-circle">✓</div>
+                            <div>
+                                <div class="status-main-name">No database selected</div>
+                                <div class="status-main-subtitle">Select server to view databases</div>
+                            </div>
+                        </div>
+                        <div class="database-item-right">
+                            <div class="database-badge">UNKNOWN</div>
+                            <div class="status-main-subtitle">0 MB</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="alertsTab" class="tab-content">
+            <div class="list-panel">
+                <div class="list-title">Alerts</div>
+                <div class="status-main-subtitle">No alerts to display.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshEnabled = true;
+        let refreshInterval;
+        let currentServerName = '00670T\\MANISHPREET';
+        let customersData = [];
+        let selectedCustomer = null;
+        let selectedServer = null;
+        let selectedServerStatus = null;
+        let selectedServerDatabases = [];
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCustomers();
+            refreshData();
+            startAutoRefresh();
+            // Hide server/database details initially
+            updateSelectedDetails();
+        });
+
+        function refreshData() {
+            updateLastUpdated();
+            fetchDashboardData();
+            fetchBlockingQueries();
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: true, 
+                hour: 'numeric', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('lastUpdated').textContent = timeString;
+        }
+
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('/api/monitoring/dashboard');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                applyFallbackDashboard();
+                showError('Failed to fetch dashboard data: ' + error.message);
+            }
+        }
+
+        async function loadCustomers() {
+            try {
+                const response = await fetch('/api/monitoring/customers?limit=0');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                customersData = data.customers || [];
+                populateCustomerDropdown();
+            } catch (error) {
+                console.error('Error loading customers:', error);
+            }
+        }
+
+        function populateCustomerDropdown() {
+            const customerSelect = document.getElementById('customerSelect');
+            customerSelect.innerHTML = '<option value="">Select client</option>';
+
+            customersData.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.customer_id;
+                option.textContent = customer.customer_name;
+                customerSelect.appendChild(option);
+            });
+
+            populateDefaultServerDropdown();
+
+            // Don't auto-select customer - user must select manually
+            // if (customersData.length === 1) {
+            //     customerSelect.value = String(customersData[0].customer_id);
+            //     onCustomerChange();
+            // }
+        }
+
+        function populateDefaultServerDropdown() {
+            const serverSelect = document.getElementById('serverSelect');
+            serverSelect.innerHTML = '<option value="">Select server</option>';
+
+            const allServers = [];
+            customersData.forEach(customer => {
+                (customer.servers || []).forEach(server => {
+                    const serverInstance = server.server_instance || server.server_name;
+                    const serverName = server.server_name || serverInstance;
+
+                    if (serverInstance && !allServers.some(item => item.server_instance === serverInstance)) {
+                        allServers.push({
+                            server_instance: serverInstance,
+                            server_name: serverName
+                        });
+                    }
+                });
+            });
+
+            if (allServers.length === 0) {
+                allServers.push({
+                    server_instance: '00670T\\MANISHPREET',
+                    server_name: '00670T\\MANISHPREET'
+                });
+            }
+
+            allServers.forEach(server => {
+                const option = document.createElement('option');
+                option.value = server.server_instance;
+                option.textContent = server.server_instance;
+                option.dataset.serverName = server.server_name;
+                serverSelect.appendChild(option);
+            });
+        }
+
+        async function onCustomerChange() {
+            const customerId = document.getElementById('customerSelect').value;
+            const serverSelect = document.getElementById('serverSelect');
+            serverSelect.innerHTML = '<option value="">Select server</option>';
+            selectedCustomer = null;
+            selectedServer = null;
+            selectedServerStatus = null;
+            selectedServerDatabases = [];
+
+            if (!customerId) {
+                updateSelectedDetails();
+                return;
+            }
+
+            selectedCustomer = customersData.find(c => String(c.customer_id) === String(customerId)) || null;
+
+            if (selectedCustomer && Array.isArray(selectedCustomer.servers) && selectedCustomer.servers.length > 0) {
+                selectedCustomer.servers.forEach(server => {
+                    const option = document.createElement('option');
+                    option.value = server.server_instance || server.server_name;
+                    option.textContent = server.server_instance || server.server_name;
+                    option.dataset.serverName = server.server_name || server.server_instance;
+                    serverSelect.appendChild(option);
+                });
+
+                // Don't auto-select server - user must select manually
+                // serverSelect.value = selectedCustomer.servers[0].server_instance || selectedCustomer.servers[0].server_name;
+                // await onServerChange();
+                updateSelectedDetails();
+                return;
+            } else {
+                const option = document.createElement('option');
+                option.value = '00670T\\MANISHPREET';
+                option.textContent = '00670T\\MANISHPREET';
+                option.dataset.serverName = '00670T\\MANISHPREET';
+                serverSelect.appendChild(option);
+                // Don't auto-select server
+                // serverSelect.value = '00670T\\MANISHPREET';
+                // await onServerChange();
+                updateSelectedDetails();
+                return;
+            }
+        }
+
+        async function onServerChange() {
+            const serverSelect = document.getElementById('serverSelect');
+            const selectedOption = serverSelect.options[serverSelect.selectedIndex];
+            const serverInstance = serverSelect.value;
+
+            selectedServer = serverInstance ? {
+                server_instance: serverInstance,
+                server_name: selectedOption ? (selectedOption.dataset.serverName || serverInstance) : serverInstance
+            } : null;
+
+            selectedServerStatus = null;
+            selectedServerDatabases = [];
+
+            if (!serverInstance) {
+                updateSelectedDetails();
+                return;
+            }
+
+            currentServerName = selectedServer.server_name || selectedServer.server_instance;
+
+            try {
+                const [serverResponse, databaseResponse] = await Promise.all([
+                    fetch(`/api/monitoring/servers?server=${encodeURIComponent(serverInstance)}`),
+                    fetch(`/api/monitoring/databases?server=${encodeURIComponent(serverInstance)}`)
+                ]);
+
+                if (serverResponse.ok) {
+                    const serverData = await serverResponse.json();
+                    selectedServerStatus = Array.isArray(serverData) && serverData.length > 0 ? serverData[0] : null;
+                }
+
+                if (databaseResponse.ok) {
+                    const databaseData = await databaseResponse.json();
+                    selectedServerDatabases = Array.isArray(databaseData)
+                        ? databaseData.filter(db => {
+                            const dbServer = db.ServerName || db.server_name || '';
+                            return !serverInstance || dbServer === serverInstance;
+                        })
+                        : [];
+                }
+            } catch (error) {
+                console.error('Error loading selected server details:', error);
+            }
+
+            updateSelectedDetails();
+            updateMainDashboardMetrics();
+        }
+
+        function updateSelectedDetails() {
+            document.getElementById('selectedServerName').textContent =
+                selectedServer ? (selectedServer.server_name || selectedServer.server_instance) : 'Not selected';
+
+            document.getElementById('selectedClientName').textContent =
+                selectedCustomer ? selectedCustomer.customer_name : 'Not selected';
+
+            document.getElementById('selectedDatabaseCount').textContent =
+                selectedServerDatabases.length || 0;
+
+            const isOnline = selectedServerStatus ? !!selectedServerStatus.IsAvailable : false;
+            document.getElementById('selectedOnlineStatus').textContent =
+                selectedServerStatus ? (isOnline ? 'Online' : 'Offline') : 'Unknown';
+
+            let runningState = 'Unknown';
+            if (selectedServerStatus) {
+                runningState = isOnline ? 'Running' : 'Stopped';
+            } else if (selectedServerDatabases.length > 0) {
+                const allOnline = selectedServerDatabases.every(db => db.State === 'ONLINE');
+                runningState = allOnline ? 'Running' : 'Degraded';
+            }
+            document.getElementById('selectedRunningState').textContent = runningState;
+
+            const responseTime = selectedServerStatus && selectedServerStatus.ResponseTimeMs
+                ? `${Math.round(selectedServerStatus.ResponseTimeMs)} ms`
+                : '0 ms';
+            document.getElementById('selectedResponseTime').textContent = responseTime;
+
+            // Update database names list
+            const databaseNamesElement = document.getElementById('selectedDatabaseNames');
+            if (!selectedServer) {
+                databaseNamesElement.innerHTML = 'Select a server to view database names';
+            } else if (selectedServerDatabases.length === 0) {
+                databaseNamesElement.innerHTML = `<span style="opacity: 0.7;">No databases found on ${selectedServer.server_instance}</span>`;
+            } else {
+                const dbNames = selectedServerDatabases
+                    .map(db => db.DatabaseName || 'Unknown')
+                    .sort()
+                    .map((name, index) => `<span style="display: inline-block; margin: 4px 8px 4px 0; padding: 4px 10px; background: rgba(100, 181, 246, 0.2); border-radius: 6px; border: 1px solid rgba(100, 181, 246, 0.4);">${index + 1}. ${name}</span>`)
+                    .join('');
+                databaseNamesElement.innerHTML = dbNames;
+            }
+
+            updateServerTab();
+
+        function updateMainDashboardMetrics() {
+            if (!selectedServer || !selectedServerDatabases) {
+                return;
+            }
+
+            // Update database count in the main metrics card
+            const totalDatabases = selectedServerDatabases.length;
+            const onlineDatabases = selectedServerDatabases.filter(db => db.State === 'ONLINE').length;
+            const offlineDatabases = totalDatabases - onlineDatabases;
+            const dbHealthPercent = totalDatabases > 0 ? Math.round((onlineDatabases / totalDatabases) * 100) : 0;
+
+            document.getElementById('databaseCount').textContent = totalDatabases;
+            document.getElementById('databaseSubtitle').textContent = `${totalDatabases} total databases`;
+            
+            document.getElementById('databaseAvailabilityPercent').textContent = dbHealthPercent + '%';
+            document.getElementById('databaseAvailabilitySubtitle').textContent = `${onlineDatabases} of ${totalDatabases} databases online`;
+            document.getElementById('databaseProgressText').textContent = dbHealthPercent + '%';
+            
+            document.getElementById('onlineDatabases').textContent = onlineDatabases;
+            document.getElementById('offlineDatabases').textContent = offlineDatabases;
+            
+            updateCircularProgress('databaseProgressCircle', dbHealthPercent);
+
+            // Update server metrics if we have server status
+            if (selectedServerStatus) {
+                const isAvailable = selectedServerStatus.IsAvailable ? 1 : 0;
+                const serverHealthPercent = isAvailable * 100;
+                
+                document.getElementById('serverHealthPercent').textContent = serverHealthPercent + '%';
+                document.getElementById('serverHealthSubtitle').textContent = `${isAvailable} of 1 servers online`;
+                document.getElementById('serverHealthProgress').style.width = serverHealthPercent + '%';
+                
+                document.getElementById('serverAvailabilityPercent').textContent = serverHealthPercent + '%';
+                document.getElementById('serverAvailabilitySubtitle').textContent = `${isAvailable} of 1 servers online`;
+                document.getElementById('serverProgressText').textContent = serverHealthPercent + '%';
+                
+                document.getElementById('onlineServers').textContent = isAvailable;
+                document.getElementById('offlineServers').textContent = 1 - isAvailable;
+                document.getElementById('avgResponseTime').textContent = Math.round(selectedServerStatus.ResponseTimeMs || 0) + 'ms';
+                
+                updateCircularProgress('serverProgressCircle', serverHealthPercent);
+
+                // Update performance metrics
+                document.getElementById('cpuUsage').textContent = (selectedServerStatus.CPUUsagePercent || 0).toFixed(1) + '%';
+                document.getElementById('activeConnections').textContent = selectedServerStatus.ActiveConnections || 0;
+                document.getElementById('connectionsSubtitle').textContent = `${selectedServerStatus.BlockedSessions || 0} blocked sessions`;
+            }
+        }
+            updateDatabaseTab();
+        }
+
+        function updateServerTab() {
+            const serverName = selectedServer ? (selectedServer.server_name || selectedServer.server_instance) : '00670T\\MANISHPREET';
+            document.getElementById('serverTabName').textContent = serverName;
+            document.getElementById('serverTabResponse').textContent =
+                `Response: ${selectedServerStatus && selectedServerStatus.ResponseTimeMs ? Math.round(selectedServerStatus.ResponseTimeMs) : 0}ms`;
+            document.getElementById('serverTabCpu').textContent =
+                `${selectedServerStatus && selectedServerStatus.CPUUsagePercent ? Number(selectedServerStatus.CPUUsagePercent).toFixed(1) : '0.0'}%`;
+            document.getElementById('serverTabMemory').textContent =
+                `${selectedServerStatus && selectedServerStatus.MemoryUsagePercent ? Number(selectedServerStatus.MemoryUsagePercent).toFixed(1) : '0.0'}%`;
+            document.getElementById('serverTabConnections').textContent =
+                selectedServerStatus && selectedServerStatus.ActiveConnections ? selectedServerStatus.ActiveConnections : 0;
+            document.getElementById('serverTabDatabases').textContent = selectedServerDatabases.length || 0;
+        }
+
+        function updateDatabaseTab() {
+            const serverName = selectedServer ? (selectedServer.server_name || selectedServer.server_instance) : '00670T\\MANISHPREET';
+            const databaseList = document.getElementById('databaseList');
+
+            if (!selectedServerDatabases || selectedServerDatabases.length === 0) {
+                databaseList.innerHTML = `
+                    <div class="database-item">
+                        <div class="database-item-left">
+                            <div class="status-icon-circle">!</div>
+                            <div>
+                                <div class="status-main-name">No database names found</div>
+                                <div class="status-main-subtitle">${serverName}</div>
+                            </div>
+                        </div>
+                        <div class="database-item-right">
+                            <div class="database-badge">EMPTY</div>
+                            <div class="status-main-subtitle">0 MB</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            databaseList.innerHTML = selectedServerDatabases.map(db => `
+                <div class="database-item">
+                    <div class="database-item-left">
+                        <div class="status-icon-circle">✓</div>
+                        <div>
+                            <div class="status-main-name">${db.DatabaseName || 'Unknown Database'}</div>
+                            <div class="status-main-subtitle">${serverName}</div>
+                        </div>
+                    </div>
+                    <div class="database-item-right">
+                        <div class="database-badge">${db.State || 'UNKNOWN'}</div>
+                        <div class="status-main-subtitle">${Number(db.SizeMB || 0).toFixed(2)} MB</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showSelectedServerDetails() {
+            updateSelectedDetails();
+        }
+
+        function applyFallbackDashboard() {
+            document.getElementById('serverHealthPercent').textContent = '0%';
+            document.getElementById('serverHealthSubtitle').textContent = '0 of 0 servers online';
+            document.getElementById('serverHealthProgress').style.width = '0%';
+            document.getElementById('serverAvailabilityPercent').textContent = '0%';
+            document.getElementById('serverAvailabilitySubtitle').textContent = '0 of 0 servers online';
+            document.getElementById('serverProgressText').textContent = '0%';
+            document.getElementById('onlineServers').textContent = '0';
+            document.getElementById('offlineServers').textContent = '0';
+            document.getElementById('avgResponseTime').textContent = '0ms';
+
+            document.getElementById('databaseCount').textContent = '0';
+            document.getElementById('databaseSubtitle').textContent = '0 total databases';
+            document.getElementById('databaseAvailabilityPercent').textContent = '0%';
+            document.getElementById('databaseAvailabilitySubtitle').textContent = '0 of 0 databases online';
+            document.getElementById('databaseProgressText').textContent = '0%';
+            document.getElementById('onlineDatabases').textContent = '0';
+            document.getElementById('offlineDatabases').textContent = '0';
+            document.getElementById('totalSizeMB').textContent = '0';
+            document.getElementById('cpuUsage').textContent = '0.0%';
+            document.getElementById('activeConnections').textContent = '0';
+            document.getElementById('connectionsSubtitle').textContent = '0 blocked sessions';
+
+            updateCircularProgress('serverProgressCircle', 0);
+            updateCircularProgress('databaseProgressCircle', 0);
+        }
+
+        function updateDashboard(data) {
+            // If no server is selected, show zeros
+            if (!selectedServer) {
+                applyFallbackDashboard();
+                return;
+            }
+            
+            // Update server metrics
+            if (data.serverSummary) {
+                const serverSummary = data.serverSummary;
+                const totalServers = serverSummary.TotalServers || 1;
+                const availableServers = serverSummary.AvailableServers || 0;
+                const serverHealthPercent = totalServers > 0 ? Math.round((availableServers / totalServers) * 100) : 0;
+                
+                document.getElementById('serverHealthPercent').textContent = serverHealthPercent + '%';
+                document.getElementById('serverHealthSubtitle').textContent = `${availableServers} of ${totalServers} servers online`;
+                document.getElementById('serverHealthProgress').style.width = serverHealthPercent + '%';
+                
+                document.getElementById('serverAvailabilityPercent').textContent = serverHealthPercent + '%';
+                document.getElementById('serverAvailabilitySubtitle').textContent = `${availableServers} of ${totalServers} servers online`;
+                document.getElementById('serverProgressText').textContent = serverHealthPercent + '%';
+                
+                document.getElementById('onlineServers').textContent = availableServers;
+                document.getElementById('offlineServers').textContent = totalServers - availableServers;
+                document.getElementById('avgResponseTime').textContent = Math.round(serverSummary.AvgResponseTimeMs || 0) + 'ms';
+                
+                updateCircularProgress('serverProgressCircle', serverHealthPercent);
+            }
+
+            // Update database metrics
+            if (data.databaseSummary) {
+                const dbSummary = data.databaseSummary;
+                const totalDatabases = dbSummary.TotalDatabases || 0;
+                const onlineDatabases = dbSummary.OnlineDatabases || 0;
+                const dbHealthPercent = totalDatabases > 0 ? Math.round((onlineDatabases / totalDatabases) * 100) : 0;
+                
+                document.getElementById('databaseCount').textContent = totalDatabases;
+                document.getElementById('databaseSubtitle').textContent = `${totalDatabases} total databases`;
+                
+                document.getElementById('databaseAvailabilityPercent').textContent = dbHealthPercent + '%';
+                document.getElementById('databaseAvailabilitySubtitle').textContent = `${onlineDatabases} of ${totalDatabases} databases online`;
+                document.getElementById('databaseProgressText').textContent = dbHealthPercent + '%';
+                
+                document.getElementById('onlineDatabases').textContent = onlineDatabases;
+                document.getElementById('offlineDatabases').textContent = totalDatabases - onlineDatabases;
+                document.getElementById('totalSizeMB').textContent = Math.round(dbSummary.TotalSizeMB || 0);
+                
+                updateCircularProgress('databaseProgressCircle', dbHealthPercent);
+            }
+
+            // Update performance metrics
+            if (data.performanceSummary) {
+                const perfSummary = data.performanceSummary;
+                document.getElementById('cpuUsage').textContent = (perfSummary.AvgCPUUsage || 0).toFixed(1) + '%';
+                document.getElementById('activeConnections').textContent = perfSummary.TotalActiveConnections || 0;
+                document.getElementById('connectionsSubtitle').textContent = `${perfSummary.TotalBlockedSessions || 0} blocked sessions`;
+            }
+
+            if (data.serverSummary && data.serverSummary.ServerName) {
+                currentServerName = data.serverSummary.ServerName;
+            }
+        }
+
+        function updateCircularProgress(elementId, percentage) {
+            const circle = document.getElementById(elementId);
+            const circumference = 2 * Math.PI * 52;
+            const offset = circumference - (percentage / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+
+        async function fetchBlockingQueries() {
+            // Only fetch if a server is selected
+            if (!selectedServer) {
+                document.getElementById('blockingQueriesSection').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/monitoring/blocking-queries?server=${encodeURIComponent(selectedServer)}&threshold=30`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                displayBlockingQueries(data);
+            } catch (error) {
+                console.error('Failed to fetch blocking queries:', error);
+                // Hide section on error
+                document.getElementById('blockingQueriesSection').style.display = 'none';
+            }
+        }
+
+        function displayBlockingQueries(data) {
+            const section = document.getElementById('blockingQueriesSection');
+            const container = document.getElementById('queriesContainer');
+            const badge = document.getElementById('queryCountBadge');
+            const queries = data.queries || [];
+
+            // Show section
+            section.style.display = 'block';
+
+            // Update badge
+            badge.textContent = queries.length;
+            badge.className = queries.length > 0 ? 'query-count-badge' : 'query-count-badge zero';
+
+            // Display queries or no-queries message
+            if (queries.length === 0) {
+                container.innerHTML = '<div class="no-queries-message">✓ No blocking or long-running queries detected</div>';
+                return;
+            }
+
+            container.innerHTML = queries.map(query => {
+                const queryTypes = query.query_type.split(',');
+                const duration = formatDuration(query.elapsed_time_seconds);
+                const queryClass = queryTypes.includes('HEAD_BLOCKER') ? 'head-blocker' : 
+                                  queryTypes.includes('BLOCKED') ? 'blocked' : 'long-running';
+
+                return `
+                    <div class="query-item ${queryClass}">
+                        <div class="query-header">
+                            <div class="query-session-info">
+                                <strong>Session ${query.session_id}</strong>
+                                ${queryTypes.map(type => `<span class="query-type-badge ${type.toLowerCase().replace('_', '-')}">${type.replace('_', ' ')}</span>`).join('')}
+                            </div>
+                            <div class="query-duration">${duration}</div>
+                        </div>
+                        <div class="query-details">
+                            <div class="query-detail-item">
+                                <span>Database:</span>
+                                <strong>${query.database_name}</strong>
+                            </div>
+                            <div class="query-detail-item">
+                                <span>User:</span>
+                                <strong>${query.login_name}</strong>
+                            </div>
+                            <div class="query-detail-item">
+                                <span>Status:</span>
+                                <strong>${query.status}</strong>
+                            </div>
+                            <div class="query-detail-item">
+                                <span>Wait Type:</span>
+                                <strong>${query.wait_type}</strong>
+                            </div>
+                            ${query.blocking_session_id > 0 ? `
+                            <div class="query-detail-item">
+                                <span>Blocked By:</span>
+                                <strong style="color: #f44336;">Session ${query.blocking_session_id}</strong>
+                            </div>
+                            ` : ''}
+                            ${query.blocking_count > 0 ? `
+                            <div class="query-detail-item">
+                                <span>Blocking:</span>
+                                <strong style="color: #f44336;">${query.blocking_count} session(s)</strong>
+                            </div>
+                            ` : ''}
+                            <div class="query-detail-item">
+                                <span>CPU Time:</span>
+                                <strong>${(query.cpu_time_ms / 1000).toFixed(2)}s</strong>
+                            </div>
+                            <div class="query-detail-item">
+                                <span>Reads:</span>
+                                <strong>${formatNumber(query.reads)}</strong>
+                            </div>
+                        </div>
+                        <div class="query-text">${escapeHtml(query.query_text.substring(0, 500))}${query.query_text.length > 500 ? '...' : ''}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDuration(seconds) {
+            if (seconds < 60) {
+                return `${seconds}s`;
+            } else if (seconds < 3600) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}m ${secs}s`;
+            } else {
+                const hours = Math.floor(seconds / 3600);
+                const mins = Math.floor((seconds % 3600) / 60);
+                return `${hours}h ${mins}m`;
+            }
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        }
+
+        function showError(message) {
+            // You can implement error display here
+            console.error(message);
+        }
+
+        function showServerName() {
+            document.getElementById('selectedServerName').textContent = currentServerName;
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = document.getElementById('autoRefreshBtn');
+            
+            if (autoRefreshEnabled) {
+                btn.textContent = '⚡ Auto-refresh ON';
+                btn.classList.add('active');
+                startAutoRefresh();
+            } else {
+                btn.textContent = '⚡ Auto-refresh OFF';
+                btn.classList.remove('active');
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshEnabled) {
+                refreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
+            }
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+
+            document.querySelectorAll('.tab-content').forEach(tabContent => {
+                tabContent.classList.remove('active');
+            });
+
+            if (tabName === 'overview') {
+                document.getElementById('overviewTab').classList.add('active');
+            } else if (tabName === 'servers') {
+                updateServerTab();
+                document.getElementById('serversTab').classList.add('active');
+            } else if (tabName === 'databases') {
+                updateDatabaseTab();
+                document.getElementById('databasesTab').classList.add('active');
+            } else if (tabName === 'alerts') {
+                document.getElementById('alertsTab').classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

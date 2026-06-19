@@ -1,0 +1,17 @@
+{
+  "customers": [
+    {
+      "customer_id": 1,
+      "customer_name": "Manish Genious",
+      "servers": [
+        {
+          "server_name": "00670T\\MANISHPREET",
+          "server_instance": "00670T\\MANISHPREET",
+          "description": "Production SQL Server"
+        }
+      ],
+      "priority": "Critical",
+      "contact_email": "admin@production.local"
+    }
+  ]
+}

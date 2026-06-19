@@ -1,0 +1,28 @@
+{
+  "monitoring_server": {
+    "server": "00670T\\MANISHPREET",
+    "database": "SQLServerMonitoring",
+    "use_windows_auth": true,
+    "username": "",
+    "password": ""
+  },
+  "target_servers": [
+    "00670T\\MANISHPREET"
+  ],
+  "collection_interval_seconds": 30,
+  "alert_thresholds": {
+    "cpu_percent": 80,
+    "memory_percent": 85,
+    "blocked_sessions": 5,
+    "response_time_ms": 1000
+  },
+  "email_alerts": {
+    "enabled": false,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "from_email": "alerts@yourdomain.com",
+    "to_emails": ["admin@yourdomain.com"],
+    "username": "",
+    "password": ""
+  }
+}
